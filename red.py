@@ -143,7 +143,8 @@ class Bot(commands.Bot):
     def user_allowed(self, message):
         author = message.author
 
-        if author.bot:
+        bot_whitelist = self.get_cog('Owner').bot_whitelist
+        if author.bot and author.id not in bot_whitelist:
             return False
 
         if author == self.user:
