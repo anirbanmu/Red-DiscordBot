@@ -47,6 +47,7 @@ class Owner:
         self.setowner_lock = False
         self.disabled_commands = dataIO.load_json("data/red/disabled_commands.json")
         self.global_ignores = dataIO.load_json("data/red/global_ignores.json")
+        self.bot_whitelist = dataIO.load_json("data/red/bot_whitelist.json")
         self.session = aiohttp.ClientSession(loop=self.bot.loop)
 
     def __unload(self):
@@ -625,6 +626,53 @@ class Owner:
         self.save_global_ignores()
         await self.bot.say("Whitelist is now empty.")
 
+    @commands.group(pass_context=True)
+    @checks.is_owner()
+    async def botwhitelist(self, ctx):
+        """Bot whitelist management commands
+
+        Whitelisted bot users will be able to issue commands"""
+        if ctx.invoked_subcommand is None:
+            await self.bot.send_cmd_help(ctx)
+
+    @botwhitelist.command(name="add")
+    async def _botwhitelist_add(self, user: GlobalUser):
+        """Adds user to bot whitelist"""
+        if user.id not in self.bot_whitelist:
+            self.bot_whitelist.append(user.id)
+            self.save_bot_whitelist()
+            await self.bot.say("Bot user has been whitelisted.")
+        else:
+            await self.bot.say("Bot user is already whitelisted.")
+
+    @botwhitelist.command(name="remove")
+    async def _botwhitelist_remove(self, user: GlobalUser):
+        """Removes bot user from bot whitelist"""
+        if user.id in self.bot_whitelist:
+            self.bot_whitelist.remove(user.id)
+            self.save_bot_whitelist()
+            await self.bot.say("Bot user has been removed from the whitelist.")
+        else:
+            await self.bot.say("Bot user is not whitelisted.")
+
+    @botwhitelist.command(name="list")
+    async def _botwhitelist_list(self):
+        """Lists bot users on the whitelist"""
+        whitelist = self._populate_list(self.bot_whitelist)
+
+        if whitelist:
+            for page in whitelist:
+                await self.bot.say(box(page))
+        else:
+            await self.bot.say("The bot whitelist is empty.")
+
+    @botwhitelist.command(name="clear")
+    async def _botwhitelist_clear(self):
+        """Clears the bot whitelist"""
+        self.bot_whitelist = []
+        self.save_bot_whitelist()
+        await self.bot.say("Bot whitelist is now empty.")
+
     @commands.command()
     @checks.is_owner()
     async def shutdown(self, silently : bool=False):
@@ -919,7 +967,7 @@ class Owner:
             await self.bot.say("No exception has occurred yet.")
 
     def _populate_list(self, _list):
-        """Used for both whitelist / blacklist
+        """Used for both whitelist / blacklist / bot whitelist
 
         Returns a paginated list"""
         users = []
@@ -1057,6 +1105,9 @@ class Owner:
     def save_disabled_commands(self):
         dataIO.save_json("data/red/disabled_commands.json", self.disabled_commands)
 
+    def save_bot_whitelist(self):
+        dataIO.save_json("data/red/bot_whitelist.json", self.bot_whitelist)
+
 
 def _import_old_data(data):
     """Migration from mod.py"""
@@ -1089,6 +1140,9 @@ def check_files():
 
         dataIO.save_json("data/red/global_ignores.json", data)
 
+    if not os.path.isfile("data/red/bot_whitelist.json"):
+        print ("Creating empty bot_whitelist.json")
+        dataIO.save_json("data/red/bot_whitelist.json", [])
 
 def setup(bot):
     check_files()
